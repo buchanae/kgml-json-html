@@ -1,0 +1,218 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset='utf-8'>
+    <style>
+      #container {
+        position: relative;
+      }
+
+      #canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+      }
+
+      #overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        font-size: 0.8em;
+      }
+
+      #overlay .reaction {
+        position: absolute;
+        background-color: #bfffbf;
+        padding: 2px;
+        border: 1px solid black;
+        text-align: center;
+      }
+
+      #overlay .ortholog {
+        position: absolute;
+        background-color: white;
+        padding: 2px;
+        border: 1px solid black;
+        text-align: center;
+      }
+
+      #overlay .map {
+        position: absolute;
+        background-color: white;
+        border: 1px solid black;
+        border-radius: 5px;
+        padding: 0 10px;
+        text-align: center;
+      }
+
+      #overlay .compound {
+        position: absolute;
+        background-color: white;
+      }
+
+    </style>
+  </head>
+  <body>
+    <div id='container'>
+      <canvas id='canvas' width='1118' height='978'></canvas>
+      <div id="overlay">
+      </div>
+    </div>
+
+    <script src='jquery.js'></script>
+    <script>
+
+
+      // TODO look at http://sigmajs.org/
+      var canvas = document.getElementById('canvas');
+      var ctx = canvas.getContext('2d');
+
+      $.getJSON('out.json', function(data) {
+
+          for (var ID in data.compounds) {
+              var p = data.compounds[ID];
+
+              ctx.beginPath();
+              ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+              ctx.stroke();
+
+              var el = $('<div class="compound">' + p.name + '</div>');
+              el.css('top', p.y - p.height / 2 + 10);
+              el.css('left', p.x - p.width / 2 + 5);
+
+              $('#overlay').append(el);
+          }
+
+/*
+                  var p = g.graphic;
+
+                  var el = $('<div class="map">' + p.name + '</div>');
+                  el.css('width', p.width);
+                  el.css('height', p.height);
+                  el.css('top', p.y - p.height / 2);
+                  el.css('left', p.x - p.width / 2);
+
+                  $('#overlay').append(el);
+                  */
+
+          for (var ID in data.reactions) {
+              var p = data.reactions[ID];
+
+              var el = $('<div class="reaction">' + p.name + '</div>');
+              el.css('top', p.y - p.height / 2);
+              el.css('left', p.x - p.width / 2);
+
+              var all_right = true;
+              var all_left = true;
+              for (var i = 0; i < p.substrates.length; i++) {
+                  var substrate_ID = p.substrates[i];
+                  var substrate = data.compounds[substrate_ID];
+
+                  all_right = all_right && (p.x < substrate.x);
+                  all_left = all_left && (p.x > substrate.x);
+              }
+
+              for (var i = 0; i < p.products.length; i++) {
+                  var product_ID = p.products[i];
+                  var product = data.compounds[product_ID];
+
+                  all_right = all_right && p.x < product.x;
+                  all_left = all_left && (p.x > product.x);
+              }
+
+              var drawLink = function(ctx, start, end, drawHead) {
+
+                  drawHead = drawHead || false;
+
+                  var midpoint = {
+                      x: start.x,
+                      y: end.y,
+                  };
+
+                  ctx.beginPath();
+                  ctx.moveTo(start.x, start.y);
+                  //ctx.lineTo(midpoint.x, midpoint.y);
+                  ctx.lineTo(end.x, end.y);
+                  ctx.stroke();
+
+                  // TODO need a vector math lib here
+
+                  if (drawHead) {
+                      ctx.save();
+                      ctx.beginPath();
+                      ctx.translate(end.x, end.y);
+                      ctx.rotate(Math.atan2(end.y - start.y, end.x - start.x));
+                      ctx.moveTo(0, 0);
+                      ctx.rotate(Math.PI * 0.2 * -1);
+                      ctx.lineTo(-10, 0);
+                      ctx.rotate(Math.PI * 0.4);
+                      ctx.lineTo(-10, 0);
+                      ctx.closePath();
+                      ctx.fill();
+                      ctx.restore();
+                  }
+              };
+
+              for (var i = 0; i < p.substrates.length; i++) {
+                  var substrate_ID = p.substrates[i];
+                  var substrate = data.compounds[substrate_ID];
+
+                  drawLink(ctx, p, substrate, p.reversible);
+
+                  /*
+                  if (all_right || all_left) {
+                      ctx.lineTo(p.x, substrate.y);
+                  }
+                  */
+              }
+
+              for (var i = 0; i < p.products.length; i++) {
+                  var product_ID = p.products[i];
+                  var product = data.compounds[product_ID];
+
+                  /*
+                  if (all_right || all_left) {
+                      ctx.lineTo(p.x, product.y);
+                  }
+                  */
+                  drawLink(ctx, p, product, true);
+              }
+
+              $('#overlay').append(el);
+          }
+
+
+/*
+                  var s = g.start;
+                  var e = g.end;
+                  ctx.beginPath();
+                  ctx.moveTo(s.x, s.y);
+                  /*
+                  if (s.x > e.x && s.y < e.y) {
+                      ctx.lineTo(e.x, s.y);
+                  } else {
+                      ctx.lineTo(s.x, e.y);
+                  }
+                  ctx.lineTo(e.x, e.y);
+                  ctx.stroke();
+                  */
+
+                  // TODO guess how to curve arrows
+
+                  // TODO when drawing arrows, ask the target element where to position the head
+                  //      this allows the target to jitter arrows when it has many incoming connections
+
+                  // TODO arrow heads
+                  //ctx.fillRect(e.x - 5, e.y - 5, 5, 5);
+              // TODO draw links first, then draw boxes over links
+              // or use layers, or use html elements for boxes
+              // probably html elements are best for user interaction
+
+          $('#overlay > .reaction').on('click', function() { console.log('reaction click'); });
+          $('#overlay > .map').on('click', function() { console.log('map click'); });
+      });
+
+    </script>
+
+  </body>
+</html>
